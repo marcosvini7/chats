@@ -44,9 +44,9 @@ io.on('connection', socket => {
         io.to(socket.id).emit('getLogs', logs)
     })
 
-    socket.on('logout', name => {
+    socket.on('logout', () => {
         for(let i = 0; i < logs.length; i++){
-            if(logs[i].name == name) {
+            if(logs[i].id == socket.id) {
                 let timestamp = Date.now()            
                 let date = new Date(timestamp)
                 let time = date.toLocaleTimeString('pt-br')

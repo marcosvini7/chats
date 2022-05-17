@@ -40,7 +40,7 @@ export default {
     logout(){     
       let socket = this.io(process.env.VUE_APP_WS_URL)
       socket.on('connect', () => {
-        socket.emit('logout', this.name)
+        socket.emit('logout')
       })
 
       socket.on('logout', () => {
