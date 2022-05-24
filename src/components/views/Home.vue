@@ -15,13 +15,13 @@
 
     <div v-if="$route.name == 'home' ">
         <v-title>Home</v-title>
-        <div class="border chat">
+        <div class="border chat" :style="chatHeightStyle">
             <div v-for="msg,i in messages" :key="i" :class="messageMargin(msg)"> 
                 <div :class="messagePosition(msg)">
                     <div :class="messageColor(msg)">           
                         <b v-if="msg.id != socket.id" >
                             <span v-if="!msg.name">
-                                <i  class="bi bi-person"></i> {{msg.sender}}:
+                               <i class="bi bi-person-fill" :class="userColor(msg)" ></i> {{msg.sender}}:
                             </span>
 
                             <span v-else>
@@ -34,10 +34,12 @@
                 <div :class="timePosition(msg)"><i class="bi bi-clock"></i> {{msg.time}}</div>                               
             </div>
         </div>
-        <div class="d-flex mt-2">
-            <input v-model="message" type="text" class="form-control">
+        <div class="d-flex mt-2 align-items-end">           
+            <textarea v-model="message" class="form-control" ></textarea>
             <div class="divider"></div>
-            <button @click="sendMessage" class="btn btn-primary">Enviar</button>
+            <div @click="sendMessage">
+                <i class="bi bi-send"></i>
+            </div>              
         </div>
     </div>
     <div v-else>
@@ -52,7 +54,9 @@ export default {
   data: () => ({
       socket: null,
       message: '',
-      messages: []
+      messages: [],
+      chatHeightStyle: '',
+      user: {}
   }),
   methods: {
       messagePosition(msg){
@@ -68,40 +72,58 @@ export default {
       timePosition(msg){
           return msg.id == this.socket.id ? 'time text-end' : 'time text-start'
       },
+      userColor(msg){
+          return msg.gender == 'Masculino' ? 'blueUser' : 'pinkUser'
+      },
       getTime(){
         let timestamp = Date.now()            
-        let date = new Date(timestamp)
-        let time = date.toLocaleTimeString('pt-br')
-        return time
+        let time = new Date(timestamp) 
+        if(time.getMinutes() > 9){
+            return time.getHours() + ':' + time.getMinutes()
+        } else {
+            return time.getHours() + ':' + '0' + time.getMinutes() 
+        }         
       },
-      sendMessage(){          
+      sendMessage(){        
           if(this.message != ''){          
             let message = {
                 id: this.socket.id,
                 text: this.message,
                 time: this.getTime(),
                 timestamp: Date.now(),
-                sender: localStorage.getItem('name')
+                sender: this.user.name,
+                gender: this.user.gender
             }
             this.socket.emit('sendMessage', message)
+            this.message = ''
           }         
       },
       scrollChat(){
+        let chat = document.getElementsByClassName('chat')[0]
         setTimeout(() => {
-            let chat = document.getElementsByClassName('chat')[0]
-            chat.scrollTo(0, chat.scrollHeight)
-        }, 100)
+            chat?.scrollTo(0, chat?.scrollHeight)
+        }, 200)
       }
   },
-  created(){      
+  created(){       
+    let chatHeight = window.innerHeight - 270
+    this.chatHeightStyle = 'height: ' + chatHeight + 'px'
+
     this.socket = this.io(process.env.VUE_APP_WS_URL)
     this.socket.on('connect', () => {
+        let user = JSON.parse(localStorage.getItem('user'))
+        if(!user.id){
+            user.id = this.socket.id
+            localStorage.setItem('user', JSON.stringify(user))
+        }
         let log = {
-            id: this.socket.id,
+            id: user.id,
             time: this.getTime(),
             timestamp: Date.now(),
-            name: localStorage.getItem('name')
-        }
+            name: user.name,
+            gender: user.gender
+        }                     
+        this.user = user              
         this.socket.emit('log', log)
     })
 
@@ -115,13 +137,13 @@ export default {
         this.scrollChat()              
     })
   },
+
   mounted(){
-      let pessoas = [
-          { id: 1, name: 'marcos'},
-          { id: 2, name: 'cezar'},
-          { id: 3, name: 'pedro'}
-      ]
-    }
+      window.addEventListener('resize', () => {
+          let chatHeight = window.innerHeight - 270
+          this.chatHeightStyle = 'height: ' + chatHeight + 'px'
+      })
+  }
       
   }
 
@@ -129,7 +151,6 @@ export default {
 
 <style>
     .chat {
-        height: 400px;
         overflow-y: scroll;
         background: #EBF2F5;
 
@@ -151,9 +172,6 @@ export default {
     #chat b {
         color:cornflowerblue
     }
-    .bi-person {
-        font-size: 1.2em;
-    }
     .message-owner {
         background: #C2E3F5;
         border-radius: 30px;
@@ -169,5 +187,20 @@ export default {
     }
     #icons i{
         font-size: 1.3em
+    }
+    .blueUser {
+        color:dodgerblue
+    }
+
+    .pinkUser {
+        color:hotpink
+    }
+    .bi-send {
+        font-size: 1.4em;
+        color:cadetblue;
+        cursor:pointer
+    }
+    .bi-person-fill {
+        font-size: 1.2em
     }
 </style>

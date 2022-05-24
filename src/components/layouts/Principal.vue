@@ -40,18 +40,28 @@ export default {
     logout(){     
       let socket = this.io(process.env.VUE_APP_WS_URL)
       socket.on('connect', () => {
-        socket.emit('logout')
+        socket.emit('logout', {
+          id: JSON.parse(localStorage.getItem('user')).id, 
+          time: this.getTime()
+        })
       })
 
       socket.on('logout', () => {
-        localStorage.removeItem('name')
+        localStorage.removeItem('user')
+        localStorage.removeItem('logged')
         this.name = ''
         this.$router.push({name: 'principal'})
       })
-    }
+
+    },
+    getTime(){
+        let timestamp = Date.now()            
+        let time = new Date(timestamp) 
+        return time.getHours() + ':' + time.getMinutes() 
+      }
   },
   created(){
-    this.name = localStorage.getItem('name')
+    this.name = JSON.parse(localStorage.getItem('user'))?.name
     this.emitter.on('logged', name => {
       this.name = name
     })

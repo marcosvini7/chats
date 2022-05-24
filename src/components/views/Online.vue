@@ -5,7 +5,9 @@
             <div class="d-flex align-items-center">
                 <img src="/ligar.png" alt="" id="img-on" >
                 <div style="margin-left: 10px"></div>
-                <h5> {{ user.name }}</h5>
+                <h5> 
+                    <i class="bi bi-person-fill" :class="userColor(user)" ></i> {{ user.name }}
+                </h5>
             </div>            
         </li>
     </ul>
@@ -17,6 +19,11 @@ export default {
         users: [],
         socket: null
     }),
+    methods: {
+        userColor(user){
+          return user.gender == 'Masculino' ? 'blueUser' : 'pinkUser'
+        },
+    },
     created(){
         this.socket = this.io(process.env.VUE_APP_WS_URL)
         this.socket.on('connect', () => {
@@ -34,5 +41,15 @@ export default {
 <style>
     #img-on {
         width: 50px
+    }
+    .blueUser {
+        color:dodgerblue
+    }
+
+    .pinkUser {
+        color:hotpink
+    }
+    .bi-person-fill {
+        font-size: 1.2em
     }
 </style>

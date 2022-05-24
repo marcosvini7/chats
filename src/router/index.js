@@ -15,7 +15,7 @@ const routes = [
         name: 'login', 
         component: Login,
         beforeEnter: () => {
-          if(localStorage.getItem('name')){
+          if(localStorage.getItem('user')){
             return {name: 'home'}
           }
         }
@@ -25,7 +25,7 @@ const routes = [
         name: 'home', 
         component: Home,
         beforeEnter: () => {
-          if(!localStorage.getItem('name')){
+          if(!localStorage.getItem('user')){
             return {name: 'login'}
           }
         },

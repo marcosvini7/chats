@@ -6,7 +6,7 @@ const port = process.env.PORT || 3000
 const { Server } = require('socket.io')
 const io = new Server(server, {
     cors: {
-        origin: '*'
+        origins: 'https://chats-online.herokuapp.com ws://localhost:3000'
     }
 })
 
@@ -20,20 +20,18 @@ let logs = []
 let messages = []
 
 io.on('connection', socket => {
-    socket.on('appLog', data => {
-        appLogs.push({id: socket.id, name: data.name})
-    })
 
     socket.on('log', data => {      
         let foundId = false
         for(let i = 0; i < logs.length; i++){
-            if(logs[i].name == data.name){ 
-                logs[i].id = socket.id
+            if(logs[i].id == data.id){ 
+                logs[i].socket = socket.id
                 foundId = true
             }
         }
         if(!foundId) {
             data.text = data.name + ' entrou no chat'
+            data.socket = socket.id
             logs.push(data)
             io.emit('getLogs', logs)
             socket.broadcast.emit('log', data)
@@ -44,27 +42,23 @@ io.on('connection', socket => {
         io.to(socket.id).emit('getLogs', logs)
     })
 
-    socket.on('logout', () => {
+    socket.on('logout', (data) => {
         for(let i = 0; i < logs.length; i++){
-            if(logs[i].id == socket.id) {
-                let timestamp = Date.now()            
-                let date = new Date(timestamp)
-                let time = date.toLocaleTimeString('pt-br')
-
-                logs[i].time = time
+            if(logs[i].id == data.id) {
+                logs[i].time = data.time
                 logs[i].timestamp = Date.now()
                 logs[i].text = logs[i].name + ' saiu do chat'
                 io.emit('log', logs[i])     
                 io.to(socket.id).emit('logout')          
                 logs.splice(i, 1)
-                io.emit('getLogs', logs)              
+                socket.broadcast.emit('getLogs', logs)              
             }
         }
     })
 
     socket.on('disconnect', () => {
         for(let i = 0; i < logs.length; i++){
-            if(logs[i].id == socket.id) {
+            if(logs[i].socket == socket.id) {
                 let timestamp = Date.now()            
                 let date = new Date(timestamp)
                 let time = date.toLocaleTimeString('pt-br')
@@ -72,9 +66,9 @@ io.on('connection', socket => {
                 logs[i].time = time
                 logs[i].timestamp = Date.now()
                 logs[i].text = logs[i].name + ' saiu do chat'
-                io.emit('log', logs[i])               
+                socket.broadcast.emit('log', logs[i])               
                 logs.splice(i, 1)
-                io.emit('getLogs', logs)
+                socket.broadcast.emit('getLogs', logs)
             }
         }
     })
@@ -84,15 +78,15 @@ io.on('connection', socket => {
         io.emit('sendMessage', data)
     })
 
-    socket.on('verifyLogs', name => {
-        io.to(socket.id).emit('verifyLogs', verifyLogs(name))
+    socket.on('verifyLogs', id => {
+        io.to(socket.id).emit('verifyLogs', verifyLogs(id))
     })
 
-    function verifyLogs(name){
+    function verifyLogs(id){
         let result = true
 
         for(let i = 0; i < logs.length; i++){
-            if(logs[i].name == name || name == null){ 
+            if(logs[i].id == id || id == null){ 
                 result = false
             }
         }
@@ -107,6 +101,16 @@ io.on('connection', socket => {
 
         return index
     }
+
+    function getTime(){
+        let timestamp = Date.now()            
+        let time = new Date(timestamp) 
+        if(time.getMinutes() > 9){
+            return time.getHours() + ':' + time.getMinutes()
+        } else {
+            return time.getHours() + ':' + '0' + time.getMinutes() 
+        }         
+      }
 
 })
 
