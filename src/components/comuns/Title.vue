@@ -1,5 +1,5 @@
 <template>
-    <div class="border mt-3 mb-3">
+    <div class="border mt-2 mb-2">
         <h4 class="text-center"><slot/></h4>      
     </div>
 </template>

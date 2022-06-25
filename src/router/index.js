@@ -3,6 +3,7 @@ import Home from '@/components/views/Home.vue'
 import Login from '@/components/views/Login.vue'
 import Principal from '@/components/layouts/Principal.vue'
 import Online from '@/components/views/Online.vue'
+import Chats from '@/components/views/Chats.vue'
 
 const routes = [
   {
@@ -31,9 +32,19 @@ const routes = [
         },
         children: [
           {
+            path: 'chat/:name/:socket',
+            name: 'chat',
+            component: Home
+          },
+          {
             path: 'online',
             name: 'online',
             component: Online
+          },
+          {
+            path: 'chats',
+            name: 'chats',
+            component: Chats
           }
         ]
       }

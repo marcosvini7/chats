@@ -1,37 +1,36 @@
 <template>
-    <div class="d-flex justify-content-center">
-        <div id="icons" class="d-flex justify-content-around col col-lg-4 mt-3">
-            <button class="btn btn-light" @click="$router.push({name: 'home'})">
+   
+    <div class="d-flex justify-content-center nav-area"  v-if="!notification">
+        <div id="icons" class="d-flex justify-content-around col col-lg-4 mt-3" >
+            <button :class="buttons[0]" @click="$router.push({name: 'home'})">
                 <i class="bi bi-globe"></i>
             </button>
-            <button class="btn btn-light" @click="$router.push({name: 'online'})">
+            <button :class="buttons[1]" @click="$router.push({name: 'online'})">
                 <i class="bi bi-people"></i>
             </button>
-            <button class="btn btn-light">
+            <button :class="buttons[2]"  @click="$router.push({name: 'chats'})">
                 <i class="bi bi-chat-left-text"></i>
             </button>
-        </div>
+        </div>       
     </div>
 
-    <div v-if="$route.name == 'home' ">
-        <v-title>Home</v-title>
+    <div class="d-flex align-items-center nav-area" v-if="notification">        
+        <div class="bg-success mt-2 col rounded p-1">
+            <div class="d-flex justify-content-center align-items-center"> 
+                <h6 class="text-white text-center pointer" @click="$router.push({name: 'chat', params: {socket: notifMsg.id, name: notifMsg.sender}})"> 
+                    <i class="bi bi-chat-dots"></i> {{ notifMsg.sender + ': ' + notifMsg.text}} 
+                </h6> 
+                <div class="divider"></div>                  
+                <i class="bi bi-x-circle text-white pointer" @click="closeNotification()" ></i>                                                                
+            </div>          
+        </div>       
+    </div>        
+
+    <div v-if="$route.name == 'home' || $route.name == 'chat' ">
+        <v-title>{{title}}</v-title>
         <div class="border chat" :style="chatHeightStyle">
             <div v-for="msg,i in messages" :key="i" :class="messageMargin(msg)"> 
-                <div :class="messagePosition(msg)">
-                    <div :class="messageColor(msg)">           
-                        <b v-if="msg.id != socket.id" >
-                            <span v-if="!msg.name">
-                               <i class="bi bi-person-fill" :class="userColor(msg)" ></i> {{msg.sender}}:
-                            </span>
-
-                            <span v-else>
-                                <i  class="bi bi-info-circle"></i>
-                            </span>                        
-                        </b> 
-                        {{msg.text}}                   
-                    </div>
-                </div>
-                <div :class="timePosition(msg)"><i class="bi bi-clock"></i> {{msg.time}}</div>                               
+                <message :msg="msg" :socket="socket"></message>                              
             </div>
         </div>
         <div class="d-flex mt-2 align-items-end">           
@@ -52,28 +51,30 @@
 
 export default {
   data: () => ({
+      buttons: ['btn btn-light', 'btn btn-light', 'btn btn-light'],
+      title: 'Home',
+      notification: false,
+      notifMsg: '',
+      timeOut: null,
       socket: null,
       message: '',
       messages: [],
       chatHeightStyle: '',
       user: {}
   }),
+  watch: {
+    notifMsg(){     
+        this.notification = true
+        clearTimeout(this.timeOut)
+
+        this.timeOut = setTimeout(() => {
+            this.notification = false
+        }, 5000)        
+    }
+  },
   methods: {
-      messagePosition(msg){
-        return msg.id == this.socket.id ? 'd-flex justify-content-end' 
-            : 'd-flex justify-content-start'
-      },
       messageMargin(msg){
-          return msg.id == this.socket.id ? 'message-left' : 'message-right'
-      },
-      messageColor(msg){
-          return msg.id == this.socket.id ? 'message-owner' : 'message'
-      },
-      timePosition(msg){
-          return msg.id == this.socket.id ? 'time text-end' : 'time text-start'
-      },
-      userColor(msg){
-          return msg.gender == 'Masculino' ? 'blueUser' : 'pinkUser'
+        return msg.id == this.socket.id ? 'message-left' : 'message-right'
       },
       getTime(){
         let timestamp = Date.now()            
@@ -94,6 +95,11 @@ export default {
                 sender: this.user.name,
                 gender: this.user.gender
             }
+            if(this.$route.name == 'chat'){
+                message.to = this.$route.params.socket
+                message.from = this.socket.id
+            }
+
             this.socket.emit('sendMessage', message)
             this.message = ''
           }         
@@ -102,10 +108,28 @@ export default {
         let chat = document.getElementsByClassName('chat')[0]
         setTimeout(() => {
             chat?.scrollTo(0, chat?.scrollHeight)
-        }, 200)
+        }, 300)
+      }, 
+      closeNotification(){
+        this.notification = false 
+        clearTimeout(this.timeOut)
       }
   },
-  created(){       
+  created(){     
+    switch(this.$route.name){
+        case 'home':
+            this.buttons[0] = 'btn btn-info' 
+            break
+        case 'online':
+            this.buttons[1] = 'btn btn-info'
+            break
+        case 'chats':
+            this.buttons[2] = 'btn btn-info'
+            break
+        default:
+            this.buttons[0] = 'btn btn-info'
+    }
+    
     let chatHeight = window.innerHeight - 270
     this.chatHeightStyle = 'height: ' + chatHeight + 'px'
 
@@ -127,15 +151,34 @@ export default {
         this.socket.emit('log', log)
     })
 
+    this.socket.on('getMessages', data => {
+        this.messages = data
+        this.scrollChat()
+    })
+
     this.socket.on('log', data => {
         this.messages.push(data)
         this.scrollChat()
     })
 
     this.socket.on('sendMessage', data => {
-        this.messages.push(data)
-        this.scrollChat()              
+        if(this.$route.name == 'home' && !data.to){
+            this.messages.push(data)
+            this.scrollChat()
+        } 
+        if(this.$route.name == 'chat' && data.to){
+            this.messages.push(data)
+            this.scrollChat()
+        }
+                       
     })
+
+    this.socket.on('notification', data => {
+        if(this.$route.params?.socket != data.from){
+            this.notifMsg = data 
+        }     
+    })
+
   },
 
   mounted(){
@@ -143,64 +186,67 @@ export default {
           let chatHeight = window.innerHeight - 270
           this.chatHeightStyle = 'height: ' + chatHeight + 'px'
       })
-  }
-      
+  },
+
+  beforeRouteUpdate(to){
+    for(let i = 0; i < this.buttons.length; i++){
+        this.buttons[i] = 'btn btn-light'
+    }
+    switch(to.name){
+        case 'home':
+            this.buttons[0] = 'btn btn-info' 
+            break
+        case 'online':
+            this.buttons[1] = 'btn btn-info'
+            break
+        case 'chats':
+            this.buttons[2] = 'btn btn-info'
+            break
+        default:
+            this.buttons[0] = 'btn btn-info'
+    }
+
+    this.title = to.params.name || 'Home'
+    this.messages = []
+    if(to.name == 'home') {
+        this.socket.emit('getMessages')
+    } else if(to.name == 'chat') {
+        this.socket.emit('getPrivateMessages', {socket1: this.socket.id, socket2: to.params.socket})
+    } 
+  }     
   }
 
 </script>
 
-<style>
+<style scoped>
     .chat {
         overflow-y: scroll;
         background: #EBF2F5;
-
     }
     .divider {
         margin-left: 5px;
         margin-right: 5px;
     }
-    .message-right {
-        margin-right: 60px;
-        margin-left: 10px;
-        margin-top: 10px;
-    }
-    .message-left {
-        margin-left: 60px;
-        margin-right: 10px;
-        margin-top: 10px;
-    }
-    #chat b {
-        color:cornflowerblue
-    }
-    .message-owner {
-        background: #C2E3F5;
-        border-radius: 30px;
-        padding: 7px;
-    }
-    .message {
-        background: #F4E0FA;
-        border-radius: 30px;
-        padding: 7px;
-    }
-    .time {
-        font-size: 0.8em;
-    }
+    
     #icons i{
-        font-size: 1.3em
+        font-size: 1.3em;
+        
     }
-    .blueUser {
-        color:dodgerblue
-    }
-
-    .pinkUser {
-        color:hotpink
-    }
+    
     .bi-send {
         font-size: 1.4em;
         color:cadetblue;
         cursor:pointer
     }
-    .bi-person-fill {
-        font-size: 1.2em
+
+    .nav-area {
+        height: 60px;
     }
+    .bi-x-circle {
+        font-size: 1.2em;
+    }
+    .pointer {
+        cursor: pointer
+    }
+    
 </style>

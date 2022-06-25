@@ -48,7 +48,6 @@ export default {
 
       socket.on('logout', () => {
         localStorage.removeItem('user')
-        localStorage.removeItem('logged')
         this.name = ''
         this.$router.push({name: 'principal'})
       })

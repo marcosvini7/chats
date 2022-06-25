@@ -1,7 +1,8 @@
 <template>
     <v-title>Pessoas Online</v-title>
     <ul class="list-group">
-        <li class="list-group-item" v-for="user,i in users" :key="i">
+        <li class="list-group-item pointer" v-for="user,i in users" :key="i" 
+        @click="openChat(user)">
             <div class="d-flex align-items-center">
                 <img src="/ligar.png" alt="" id="img-on" >
                 <div style="margin-left: 10px"></div>
@@ -23,6 +24,11 @@ export default {
         userColor(user){
           return user.gender == 'Masculino' ? 'blueUser' : 'pinkUser'
         },
+        openChat(user){
+            if(user.socket != this.socket.id){
+                this.$router.push({name: 'chat', params: {socket: user.socket, name: user.name}})
+            }           
+        }
     },
     created(){
         this.socket = this.io(process.env.VUE_APP_WS_URL)
@@ -51,5 +57,8 @@ export default {
     }
     .bi-person-fill {
         font-size: 1.2em
+    }
+    .pointer {
+        cursor: pointer
     }
 </style>

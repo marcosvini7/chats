@@ -35,7 +35,56 @@ io.on('connection', socket => {
             logs.push(data)
             io.emit('getLogs', logs)
             socket.broadcast.emit('log', data)
-        }       
+        }     
+        
+        io.to(socket.id).emit('getMessages', getMessages())  
+    })
+
+    socket.on('getMessages', () => {
+        io.to(socket.id).emit('getMessages', getMessages())
+    })
+
+    socket.on('getPrivateMessages', (data) => {
+        io.to(socket.id).emit('getMessages', messages.filter(msg => 
+            (msg.to == data.socket1 && msg.from == data.socket2)
+            || (msg.to == data.socket2 && msg.from == data.socket1)
+        ))
+    })
+
+    socket.on('getChats', (data) => {
+        let chats = []
+        let verifiedChats = []
+        let id = getLog(data).socket
+        for(let i = messages.length - 1; i >= 0; i--){
+            if(messages[i].to == id || messages[i].from == id){
+                let exist = false
+                verifiedChats.forEach(n => {
+                    if((n.to == messages[i].to && n.from == messages[i].from)
+                        || (n.to == messages[i].from && n.from == messages[i].to)){
+                        exist = true
+                    }
+                })
+                if(!exist){
+                    let log = {}
+                    if(messages[i].to == id){
+                        log = getLog(messages[i].from)
+                    } else {
+                        log = getLog(messages[i].to)
+                    }
+                    let message = {
+                        owner: getLog(messages[i].id).socket == id ? 'Você' : log.name,
+                        sender: log.name,
+                        gender: log.gender,
+                        socket: log.socket,
+                        text: messages[i].text,
+                        time: messages[i].time
+                    }
+                    verifiedChats.push(messages[i])
+                    chats.push(message)
+                }
+            }
+        }
+        io.to(socket.id).emit('getChats', chats)
     })
 
     socket.on('getLogs', () => {
@@ -59,11 +108,7 @@ io.on('connection', socket => {
     socket.on('disconnect', () => {
         for(let i = 0; i < logs.length; i++){
             if(logs[i].socket == socket.id) {
-                let timestamp = Date.now()            
-                let date = new Date(timestamp)
-                let time = date.toLocaleTimeString('pt-br')
-
-                logs[i].time = time
+                logs[i].time = getTime()
                 logs[i].timestamp = Date.now()
                 logs[i].text = logs[i].name + ' saiu do chat'
                 socket.broadcast.emit('log', logs[i])               
@@ -75,7 +120,12 @@ io.on('connection', socket => {
 
     socket.on('sendMessage', data => {
         messages.push(data)
-        io.emit('sendMessage', data)
+        if(!data.to){
+            io.emit('sendMessage', data)
+        } else {
+            io.to([data.to, socket.id]).emit('sendMessage', data)
+            io.to(data.to).emit('notification', data)
+        }
     })
 
     socket.on('verifyLogs', id => {
@@ -93,6 +143,17 @@ io.on('connection', socket => {
         return result    
     }
 
+    function getMessages(){
+        let msgs = []
+        for(let i = messages.length - 20; i < messages.length; i++ ){
+            if(i >= 0 && !messages[i].to){
+                msgs.push(messages[i])
+            }
+        }
+
+        return msgs
+    }
+
     function position(id, list, key){ 
         let index = -1
         for(let i = 0; i < list.length; i++){
@@ -102,16 +163,36 @@ io.on('connection', socket => {
         return index
     }
 
+    function getLog(socket1){
+
+        let v_log = false
+
+        logs.forEach(log => {
+            if(log.id == socket1){
+                v_log = log
+            }
+        })
+
+        if(!v_log){
+            logs.forEach(log => {
+                if(log.socket == socket1){
+                    v_log = log
+                }
+            })
+        }
+
+        return v_log
+    }
+
     function getTime(){
         let timestamp = Date.now()            
-        let time = new Date(timestamp) 
-        if(time.getMinutes() > 9){
-            return time.getHours() + ':' + time.getMinutes()
-        } else {
-            return time.getHours() + ':' + '0' + time.getMinutes() 
-        }         
-      }
+        timeBr = new Date(timestamp).toLocaleTimeString('pt-br', {
+            hour: '2-digit',
+            minute:'2-digit'
+          })  
 
+        return timeBr  
+    }
 })
 
 server.listen(port, () => {
